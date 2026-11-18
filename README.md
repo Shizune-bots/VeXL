@@ -55,55 +55,55 @@ _(list of available variables isn't complete.)_
 ## ▚ COMMAND INTERFACE
 
 ```
-start        - check if VeXL is awake, get usage
-restart      - restart VeXL
-update       - update VeXL
-nuke         - ☢️ nuke VeXL
-bash         - /bash + command
-eval         - evaluate code
-peval        - eval, pyrogram context
-pause        - halt encoding
-ping         - ping!
-add          - queue a video
-leech        - queue a link
-qbleech      - queue a torrent link
-select       - select files from a batch to encode
-permit       - grant temporary user access
-unpermit     - revoke temporary user access
-queue        - list current queue
-batch        - preview batches
-list         - list all files in a torrent
-forward      - manually forward a message to fchannel
-v            - toggle v2/v3/v4… (with message)
-download     - download a file or link
-upload       - upload from local directory or link
-rename       - rename a video file/link
-mediainfo    - get mediainfo of a replied file/link
-mux          - remux a file
-get          - view current ffmpeg code
-set          - set custom ffmpeg code
-reset        - reset default ffmpeg code
-filter       - filter & stuff
-vfilter      - view filter
-delfilter    - delete filter
-rss          - edit, delete, subscribe to rss feeds
-anime        - get anime info
-airing       - get anime's airing info
-setrename    - set custom_rename format
-name         - quick filter with anime_title
-vname        - list name filters
-delname      - delete a name filter
-status       - 🆕 get VeXL's status
-showthumb    - 🖼️ show current thumbnail
-parse        - toggle caption/anilist parsing
-groupenc     - toggle encoding in groups
-svc / skipvideocheck - toggle video validation check for links (owner only)
-cancelall    - ❌ clear cached downloads & queued files
-clear        - clear queued files
-logs         - get VeXL's logs
-filehost     - 🆕 configure file hosting for large files
-forcehost    - 🆕 force file hosting for encoded files
-help         - same as start
+start - check if VeXL is awake, get usage
+restart - restart VeXL
+update - update VeXL
+nuke - ☢️ nuke VeXL
+bash - /bash + command
+eval - evaluate code
+peval - eval, pyrogram context
+pause - halt encoding
+ping - ping!
+add - queue a video
+leech - queue a link
+qbleech - queue a torrent link
+select - select files from a batch to encode
+permit - grant temporary user access
+unpermit - revoke temporary user access
+queue - list current queue
+batch - preview batches
+list - list all files in a torrent
+forward - manually forward a message to fchannel
+v - toggle v2/v3/v4… (with message)
+download - download a file or link
+upload - upload from local directory or link
+rename - rename a video file/link
+mediainfo - get mediainfo of a replied file/link
+mux - remux a file
+get - view current ffmpeg code
+set - set custom ffmpeg code
+reset - reset default ffmpeg code
+filter - filter & stuff
+vfilter - view filter
+delfilter - delete filter
+rss - edit, delete, subscribe to rss feeds
+anime - get anime info
+airing - get anime's airing info
+setrename - set custom_rename format
+name - quick filter with anime_title
+vname - list name filters
+delname - delete a name filter
+status - 🆕 get VeXL's status
+showthumb - 🖼 show current thumbnail
+parse - toggle caption/anilist parsing
+groupenc - toggle encoding in groups
+svc - toggle video validation check for links (owner only)
+cancelall - ❌ clear cached downloads & queued files
+clear - clear queued files
+logs - get VeXL's logs
+filehost - 🆕 configure file hosting for large files
+forcehost - 🆕 force file hosting for encoded files
+help - same as start
 ```
 
 ---

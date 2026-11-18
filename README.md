@@ -3,8 +3,6 @@
 # 「 V e X L 」
 ### _encoding system // pattern: blue_
 
-[![pyLint](https://github.com/Nubuki-all/Tg-encoder/actions/workflows/pyLint.yml/badge.svg?branch=main)](https://github.com/Nubuki-all/Tg-encoder/actions/workflows/pyLint.yml)
-
 `STATUS: BETA — SYNCHRONIZATION IN PROGRESS`
 
 </div>

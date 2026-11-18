@@ -10,7 +10,7 @@
 
 ---
 
-## ▚ CONFIGURATION // MAGI PARAMETERS
+## ▚ CONFIGURATION 
 
 _(For local/VPS deployment, rename [.env.sample](.env.sample) to `.env` and edit accordingly.)_
 _(list of available variables isn't complete.)_

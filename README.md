@@ -1,116 +1,192 @@
-# [ENC]
+<div align="center">
+
+# 「 V e X L 」
+### _encoding system // pattern: blue_
 
 [![pyLint](https://github.com/Nubuki-all/Tg-encoder/actions/workflows/pyLint.yml/badge.svg?branch=main)](https://github.com/Nubuki-all/Tg-encoder/actions/workflows/pyLint.yml)
 
-__Still in beta…__
+`STATUS: BETA — SYNCHRONIZATION IN PROGRESS`
 
-### Variables
+</div>
 
-___(For local/vps deployment rename [.env.sample](.env.sample) to .env and edit with your variable)___
-(list of available variables isn't complete.)
----
-Compulsory Variables | Explanation
-:--------- | :---------------------------------------------
-`APP_ID` `API_HASH` `BOT_TOKEN` | get the first two from *[Telegram.org](https://telegram.org)* and the third from *[@Botfather](https://t.me/botfather)*
-`OWNER`    | input id Of allowed users with a space between each
-
-Optional Variables | Explanation
-:--------- | :---------------------------------------------
-`THUMBNAIL` `ICON` | input telegraph link of a picture for use as Thumbnail, Watermark.
-`FFMPEG` | input Your FFMPEG Code or Handbrake-cli code (after installing it)  with """{}""" as input and output. (Eg. __ffmpeg -i """{}""" -preset veryfast -vcodec libx265 -crf 27 """{}"""__) escape the " characters if you're deploying locally 
-`TEMP_USERS` | Additional restricted users allowed to use the bot
-`LOG_CHANNEL` | Input Log Group/Channel ID (bot must be an admin in target group or channel)
-`DATABASE_URL` | input valid Mongodb Database Url
-`ENCODER` | Encoder's name/nickname to be included in captions can also contain encode info.
-`FCHANNEL` `FCHANNEL_STATS` | Input Channel id where **only** the output video will get forwarded. For the 2nd variable input message id of a message in channel to be used as live status for encodes.
-`LOGS_IN_CHANNEL` type=bool | Get error logs in log channel. Turned off by default, set to True to turn on.
-`ALWAYS_DEPLOY_LATEST` type=bool | When starting bot always pull latest code from upstream repo or default repo if none is given 
-`CMD_SUFFIX` | Bot will only listen to commands ending with the given value
-`TELEGRAPH_API` | Api to use instead of api.telegra.ph when posting mediainfo
-`LOCK_ON_STARTUP` | Pause bot on startup untill pause off is used.
-`FS_THRESHOLD` | Threshold for bot to sleep on floodwait in seconds
-`ALLOW_ACTION` type=bool | Set to True or False depending on whether you want encoding chat actions enabled for bot
-`UPSTREAM_REPO` `UPSTREAM_BRANCH` | Input custom repo link and custom repo branch name, For use with the update function
-  . | *Note:* Update will fail if there are new modules or dependencies in bot. Redeploy if that happens 
 ---
 
+## ▚ CONFIGURATION // MAGI PARAMETERS
 
-### Commands
+_(For local/VPS deployment, rename [.env.sample](.env.sample) to `.env` and edit accordingly.)_
+_(list of available variables isn't complete.)_
+
+### ● Required
+
+| Variable | Function |
+|:---|:---|
+| `APP_ID` `API_HASH` `BOT_TOKEN` | First two from *[Telegram.org](https://telegram.org)*, third from *[@Botfather](https://t.me/botfather)* |
+| `OWNER` | User IDs authorized to command VeXL, space-separated |
+
+### ● Optional
+
+| Variable | Function |
+|:---|:---|
+| `THUMBNAIL` `ICON` | Telegraph link to image used as thumbnail / watermark |
+| `FFMPEG` | Custom FFmpeg or HandBrake-CLI command, with `"""{}"""` as input/output placeholders. Example: `ffmpeg -i """{}""" -preset veryfast -vcodec libx265 -crf 27 """{}"""` — escape `"` characters for local deployment |
+| `TEMP_USERS` | Additional restricted users allowed to operate VeXL |
+| `LOG_CHANNEL` | Log group/channel ID (VeXL must be admin) |
+| `DATABASE_URL` | Valid MongoDB database URL |
+| `ENCODER` | Encoder name/alias included in captions, may include encode info |
+| `FCHANNEL` `FCHANNEL_STATS` | Channel ID where only output videos are forwarded; message ID used as live encode status |
+| `LOGS_IN_CHANNEL` `bool` | Send error logs to log channel — off by default |
+| `ALWAYS_DEPLOY_LATEST` `bool` | Pull latest code from upstream (or default repo) on startup |
+| `CMD_SUFFIX` | VeXL only responds to commands ending in this suffix |
+| `TELEGRAPH_API` | Alternate API to `api.telegra.ph` for posting mediainfo |
+| `LOCK_ON_STARTUP` | Pause VeXL on startup until manually unpaused |
+| `FS_THRESHOLD` | Sleep threshold (seconds) on floodwait |
+| `ALLOW_ACTION` `bool` | Enable/disable encoding chat actions |
+| `UPSTREAM_REPO` `UPSTREAM_BRANCH` | Custom repo + branch for the update function — *note: update fails if new dependencies are introduced; redeploy instead* |
+| `SKIP_VIDEO_CHECK` `bool` | Skip video validation for links — accept all links without checking (default: false). Resets on restart. |
+| `BUZZHEAVIER_TOKEN` | BuzzHeavier.com Account ID (optional — from [buzzheavier.com](https://buzzheavier.com/), authenticated uploads) |
+| `FILEDITCH_TOKEN` | Fileditch.com API token (optional — from [new.fileditch.com](https://new.fileditch.com/), account uploads) |
+| `PIXELDRAIN_API_KEY` | Pixeldrain.com API key (required — from [pixeldrain.com](https://pixeldrain.com/), no anonymous uploads) |
+| `TELEGRAM_UPLOAD_LIMIT` | Max file size for Telegram upload (default: 2126000000 = 2GB) |
+| `FILE_HOST_PRIMARY` | Primary file host: `buzzheavier`, `fileditch`, or `pixeldrain` (default: `buzzheavier`) |
+| `FILE_HOST_FALLBACK` | First fallback file host: `buzzheavier`, `fileditch`, or `pixeldrain` (default: `fileditch`) |
+| `FILE_HOST_FALLBACK2` | Second fallback file host: `buzzheavier`, `fileditch`, or `pixeldrain` (default: `pixeldrain`) |
+
 ---
+
+## ▚ COMMAND INTERFACE
+
 ```
-start - check if bot is awake and get usage.
-restart -  restart bot
-update - update bot
-nuke - ☢️ nuke bot
-bash - /bash + command
-eval - evaluate code
-pause - prevent bot from encoding
-peval - same as eval but with pyrogram
-ping - ping!
-add - add video to queue
-leech - add link to queue
-qbleech - add torrent link to queue
-select - select files to encode in a batch
-permit - add a temporary user
-unpermit - removes a temporary user
-queue - list queue
-batch - preview batches
-list - list all files in a torrent
-forward - manually forward a message to fchannel
-v - turn v2,3,4… on (with message) or off
-download - download a file or link to bot
-upload - upload from a local directory or link
-rename - rename a video file/link
-mediainfo - get the media info of a replied file/link
-mux - remux a file
-get - get current ffmpeg code
-set - set custom ffmpeg code
-reset - reset default ffmpeg code
-filter - filter & stuff
-vfilter - view filter
-groupenc - allow encoding in group toggle
-delfilter - delete filter
-rss - edit, delete & subscribe rss feeds
-anime - get anime info
-airing - get anime's airing info
-setrename - set custom_rename format
-name - quick filter with anime_title
-vname - get list of name filter
-delname - delete name filter
-status - 🆕 get bot's status
-showthumb - 🖼️ show current thumbnail
-parse - toggle parsing with captions or anilist
-groupenc - turn off/on encoding in groups
-cancelall - ❌ clear cached downloads & queued files
-clear - clear queued files
-logs - get bot logs
-help - same as start
+start        - check if VeXL is awake, get usage
+restart      - restart VeXL
+update       - update VeXL
+nuke         - ☢️ nuke VeXL
+bash         - /bash + command
+eval         - evaluate code
+peval        - eval, pyrogram context
+pause        - halt encoding
+ping         - ping!
+add          - queue a video
+leech        - queue a link
+qbleech      - queue a torrent link
+select       - select files from a batch to encode
+permit       - grant temporary user access
+unpermit     - revoke temporary user access
+queue        - list current queue
+batch        - preview batches
+list         - list all files in a torrent
+forward      - manually forward a message to fchannel
+v            - toggle v2/v3/v4… (with message)
+download     - download a file or link
+upload       - upload from local directory or link
+rename       - rename a video file/link
+mediainfo    - get mediainfo of a replied file/link
+mux          - remux a file
+get          - view current ffmpeg code
+set          - set custom ffmpeg code
+reset        - reset default ffmpeg code
+filter       - filter & stuff
+vfilter      - view filter
+delfilter    - delete filter
+rss          - edit, delete, subscribe to rss feeds
+anime        - get anime info
+airing       - get anime's airing info
+setrename    - set custom_rename format
+name         - quick filter with anime_title
+vname        - list name filters
+delname      - delete a name filter
+status       - 🆕 get VeXL's status
+showthumb    - 🖼️ show current thumbnail
+parse        - toggle caption/anilist parsing
+groupenc     - toggle encoding in groups
+svc / skipvideocheck - toggle video validation check for links (owner only)
+cancelall    - ❌ clear cached downloads & queued files
+clear        - clear queued files
+logs         - get VeXL's logs
+filehost     - 🆕 configure file hosting for large files
+forcehost    - 🆕 force file hosting for encoded files
+help         - same as start
 ```
 
-### Deployment:
-**With Docker:**
-- Install Docker
-- Clone repository to your preferred location 
-- Ensure you are in the proper directory with Dockerfile and .env file present
-- For a faster build run (optional) (don't run from the scripts directory):
-  - `python3 scripts/update_docker.py`
-  (Or manually edit Dockerfile, instructions provided there.
-  To undo, run:
-  `python3 scripts/update_docker.py undo`
+---
+
+## ▚ FILE HOSTING FOR LARGE FILES (>2GB)
+
+When an encoded file exceeds Telegram's 2GB bot upload limit, VeXL automatically uploads to a file host and sends the download link instead.
+
+**Supported hosts:**
+| Host | Auth | Limits | Notes |
+|:---|:---|:---|:---|
+| **buzzheavier.com** | Optional Account ID | No explicit limit | Primary by default, fast & reliable |
+| **fileditch.com** | Optional token | 150GB/file (250GB with token) | First fallback |
+| **pixeldrain.com** | Required API key | Unlimited with key | Second fallback |
+
+**Runtime configuration:**
+```
+/filehost                  # Show interactive configuration panel with buttons
+/filehost reset            # Reset to defaults (buzzheavier → fileditch → pixeldrain)
+```
+
+**Interactive Panel:**
+When you run `/filehost`, an inline keyboard appears showing:
+- Three rows for each position (Primary, Fallback, Fallback 2)
+- Buttons to select any host for each position (buzzheavier, fileditch, pixeldrain, or disabled)
+- Reset and Close buttons
+
+Tap any button to instantly change the configuration — no command arguments needed.
+
+**Force File Host (resets on restart):**
+```
+/forcehost on      # Force ALL encoded files to file host
+/forcehost off     # Disable force file host (default)
+/forcehost show    # Show current status
+```
+
+**Skip Video Check (resets on restart):**
+By default, VeXL validates that leech/qbleech links point to actual video files (checking file extension, Content-Type header, and magic bytes). Some direct-download links fail this check even when they are videos.
+
+```
+/svc on        # Skip video check — accept ALL links without validation
+/svc off       # Enable video validation (default)
+/svc           # Show current state
+```
+Equivalent long command: `/skipvideocheck on|off`
+
+Also configurable via `SKIP_VIDEO_CHECK=true` in `.env` (persists across restarts).
+
+---
+
+## ▚ DEPLOYMENT PROTOCOL
+
+**With Docker**
+1. Install Docker
+2. Clone repository to preferred location
+3. Ensure you're in the directory containing `Dockerfile` and `.env`
+4. *(Optional, faster build — don't run from `scripts/`)*:
+   `python3 scripts/update_docker.py` — to undo: `python3 scripts/update_docker.py undo`
+5. Run:
+   ```
+   docker build . -t vexl
+   docker run vexl
+   ```
+
+**Without Docker**
+- Install dependencies — see [Dockerfile](Dockerfile) or [local_deploy.sh](scripts/local_deploy.sh) *(unmaintained — run at your own risk)*
+- Requires `python3.10`, `ffmpeg`, `ffprobe`, `mediainfo`
 - Run:
-  - `docker build . -t enc`
-  - `docker run enc`
+  - `bash run.sh` — normal start
+  - `bash srun.sh` — silent start
 
-**Without Docker:**
-- Install required dependencies check [Dockerfile](Dockerfile) or preferably [local_deploy.sh](scripts/local_deploy.sh) for inspiration (I no longer maintain the local_deploy script so run at your own risk)
-- python3.10, ffmpeg, ffprobe & mediainfo is required
-- Run:
-  - `bash run.sh` _To start bot normally_
-  - `bash srun.sh` _To start bot silently_
+---
 
-### Features:
-__(Coming Soon)__
+## ▚ FEATURES
+_`[ DATA CLASSIFIED — PENDING DISCLOSURE ]`_
 
-### Source 
+---
 
-- **[An Heavily Modified Fork of Danish CompressorQueue](https://github.com/1Danish-00/CompressorQueue)**
+<div align="center">
+
+### ⋄ SOURCE
+Heavily modified fork of *[Danish CompressorQueue](https://github.com/1Danish-00/CompressorQueue)*
+
+`VeXL // an encoding entity`
+

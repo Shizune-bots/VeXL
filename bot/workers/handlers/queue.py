@@ -1,6 +1,7 @@
 from pyrogram.types import Message
 
 from bot import asyncio, dl_pause, errors, itertools, queue_lock
+from bot.config import conf
 from bot.fun.quips import enquip4
 from bot.utils.ani_utils import qparse
 from bot.utils.batch_utils import batch_preview, clean_batch
@@ -19,6 +20,7 @@ from bot.utils.bot_utils import (
     is_magnet,
     is_url,
     is_video_file,
+    is_video_url,
     pause,
     rm_pause,
     sdict,
@@ -40,6 +42,17 @@ from bot.utils.queue_utils import get_queue_msg, q_dup_check, queue_status
 from bot.workers.downloaders.dl_helpers import get_leech_name, get_torrent
 
 str_esc = string_escape
+
+
+async def _is_video_or_url(file_name: str, uri: str) -> bool:
+    """Check if a file is a video by extension, or by URL Content-Type as fallback."""
+    # Skip video check if configured
+    if conf.SKIP_VIDEO_CHECK:
+        return True
+    if is_video_file(file_name):
+        return True
+    # Fallback: check URL via HEAD request for video Content-Type
+    return await is_video_url(uri)
 
 
 async def listqueue(event, args, client, deletable=True):
@@ -268,7 +281,7 @@ async def enleech(event, args: str, client, direct=False):
                             await event2.reply(f"`{file.error}`", quote=True)
                             await asyncio.sleep(10)
                             continue
-                        if not is_video_file(file.name):
+                        if not await _is_video_or_url(file.name, uri):
                             await event2.reply(no_dl_spt_msg, quote=True)
                             await asyncio.sleep(5)
                             continue
@@ -325,7 +338,7 @@ async def enleech(event, args: str, client, direct=False):
         file = await get_leech_name(uri)
         if file.error:
             return await event.reply(f"`{file.error}`")
-        if not is_video_file(file.name):
+        if not await _is_video_or_url(file.name, uri):
             return await event.reply(no_dl_spt_msg)
         for item in queue.values():
             if file.name in item:
@@ -497,7 +510,7 @@ async def enleech2(event, args: str, client, direct=False):
                             await event2.reply(no_bt_spt_msg, quote=True)
                             await asyncio.sleep(3)
                             continue
-                        if not is_video_file(file.name):
+                        if not await _is_video_or_url(file.name, uri):
                             await event2.reply(no_fl_spt_msg, quote=True)
                             await asyncio.sleep(5)
                             continue
@@ -587,7 +600,7 @@ async def enleech2(event, args: str, client, direct=False):
             file.name = flag.d or (file.file_list[ind].split("/"))[-1]
         elif file.count > 1:
             return await event.reply(no_bt_spt_msg)
-        elif not is_video_file(file.name):
+        elif not await _is_video_or_url(file.name, uri):
             return await event.reply(no_fl_spt_msg)
         for item in queue.values():
             if file.name in item:

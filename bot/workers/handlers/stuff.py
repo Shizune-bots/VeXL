@@ -393,6 +393,8 @@ mget{s} - view current mux_args
 filter{s} - filter & stuff
 vfilter{s} - view filter
 groupenc{s} - allow encoding in group toggle
+dumpleech{s} - toggle dumping leech downloads to dump channel
+skipvideocheck{s} (svc{s}) - toggle video validation check for links
 delfilter{s} - delete filter
 airing{s} - get anime airing info
 anime{s} - get anime info
@@ -408,6 +410,8 @@ groupenc{s} - turn off/on encoding in groups
 cancelall{s} - ❌ clear cached downloads & queued files
 clear{s} - clear queued files
 logs{s} - get bot logs
+filehost{s} - 🆕 interactive file hosting config (tap buttons to set priority)
+forcehost{s} - 🆕 force file hosting for encoded files
 help{s} - same as start`
 
 All above commands accept '-h' / '--help' arguments to get more detailed help about each command.

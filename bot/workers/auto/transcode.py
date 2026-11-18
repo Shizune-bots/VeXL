@@ -34,6 +34,8 @@ from bot.workers.downloaders.download import Downloader as downloader
 from bot.workers.encoders.encode import Encoder as encoder
 from bot.workers.uploaders.dump import dumpdl
 from bot.workers.uploaders.upload import Uploader as uploader
+from bot.utils.file_hosts import check_file_size_limit, FileHostError
+from bot.utils.bot_utils import hbs
 
 thumb2 = "thumb2.jpg"
 
@@ -426,11 +428,25 @@ async def thing():
         await op.edit(f"`Uploading…` `{out}`") if op else None
         upload = uploader(sender_id, _id)
         up = await upload.start(msg_t.chat_id, out, msg_p, thumb2, pcap, message)
+
+        # Check if file was uploaded to file hosting (no cancel but no video/document in reply)
+        # The upload.start returns a Message object - if it's a file hosting link, it won't have video/document
+        is_filehost = upload.is_cancelled is False and (not up.video and not up.document)
+
+        # Handle failed file hosting upload (returns FailedUpload object)
+        if hasattr(up, 'text') and not hasattr(up, 'video') and not hasattr(up, 'document'):
+            # File hosting failed - error already sent to user, just clean up
+            skip(queue_id)
+            mark_file_as_done(einfo.select, queue_id)
+            await save2db()
+            await save2db("batches")
+            s_remove(thumb2, out)
+            return
+
         if upload.is_cancelled:
             m = f"`Upload of {out} was cancelled`"
             if sender_id != upload.canceller:
                 canceller = await pyro.get_users(upload.canceller)
-                # m += f"by [{canceller.first_name}](tg://user?id={upload.canceller})"
                 m += f"by {canceller.mention()}"
             m += "!"
             await msg_p.edit(m)
@@ -442,12 +458,12 @@ async def thing():
             await save2db("batches")
             s_remove(thumb2, out)
             return
+
         eut = time.time()
         utime = tf(eut - sut)
 
         await msg_p.delete()
         await op.delete() if op else None
-        await up.copy(chat_id=log_channel) if op else None
 
         org_s = size_of(dl)
         out_s = size_of(out)
@@ -455,33 +471,60 @@ async def thing():
         per = str(f"{pe:.2f}") + "%"
         mux_msg = f"Muxed in `{mtime}`\n" if mux_args else str()
 
-        text = str()
-        mi = ejob.sminfo = await info(dl) if not ejob.sminfo else ejob.sminfo
-        forward_task = asyncio.create_task(
-            forward_(name, out, up, mi, f, ani, n, param_file)
-        )
+        if is_filehost:
+            # File was uploaded to file hosting, just send stats to user
+            text = str()
+            mi = ejob.sminfo = await info(dl) if not ejob.sminfo else ejob.sminfo
+            text += f"**Source:** `[{rlsgrp}]`"
+            if mi:
+                text += f"\n\nMediainfo: **[(Source)]({mi})**"
+            mi_msg = await up.reply(
+                text,
+                disable_web_page_preview=True,
+                quote=True,
+            )
 
-        text += f"**Source:** `[{rlsgrp}]`"
-        if mi:
-            text += f"\n\nMediainfo: **[(Source)]({mi})**"
-        mi_msg = await up.reply(
-            text,
-            disable_web_page_preview=True,
-            quote=True,
-        )
-        await mi_msg.copy(chat_id=log_channel) if op else None
+            st_msg = await up.reply(
+                f"**Encode Stats:**\n\nOriginal Size: "
+                f"`{hbs(org_s)}`\nEncoded Size: `{hbs(out_s)}`\n"
+                f"Encoded Percentage: `{per}`\n\n"
+                f"{'Cached' if einfo.cached_dl else 'Downloaded'} in `{dtime}`\n"
+                f"Encoded in `{etime}`\n{mux_msg}Uploaded in `{utime}`",
+                disable_web_page_preview=True,
+                quote=True,
+            )
+            # Don't forward filehost links to dump channel
+        else:
+            # Normal Telegram upload - copy to log channel and dump channel
+            await up.copy(chat_id=log_channel) if op else None
 
-        st_msg = await up.reply(
-            f"**Encode Stats:**\n\nOriginal Size: "
-            f"`{hbs(org_s)}`\nEncoded Size: `{hbs(out_s)}`\n"
-            f"Encoded Percentage: `{per}`\n\n"
-            f"{'Cached' if einfo.cached_dl else 'Downloaded'} in `{dtime}`\n"
-            f"Encoded in `{etime}`\n{mux_msg}Uploaded in `{utime}`",
-            disable_web_page_preview=True,
-            quote=True,
-        )
-        await st_msg.copy(chat_id=log_channel) if op else None
-        await forward_task
+            mi = ejob.sminfo = await info(dl) if not ejob.sminfo else ejob.sminfo
+            forward_task = asyncio.create_task(
+                forward_(name, out, up, mi, f, ani, n, param_file)
+            )
+
+            text = str()
+            text += f"**Source:** `[{rlsgrp}]`"
+            if mi:
+                text += f"\n\nMediainfo: **[(Source)]({mi})**"
+            mi_msg = await up.reply(
+                text,
+                disable_web_page_preview=True,
+                quote=True,
+            )
+            await mi_msg.copy(chat_id=log_channel) if op else None
+
+            st_msg = await up.reply(
+                f"**Encode Stats:**\n\nOriginal Size: "
+                f"`{hbs(org_s)}`\nEncoded Size: `{hbs(out_s)}`\n"
+                f"Encoded Percentage: `{per}`\n\n"
+                f"{'Cached' if einfo.cached_dl else 'Downloaded'} in `{dtime}`\n"
+                f"Encoded in `{etime}`\n{mux_msg}Uploaded in `{utime}`",
+                disable_web_page_preview=True,
+                quote=True,
+            )
+            await st_msg.copy(chat_id=log_channel) if op else None
+            await forward_task
 
         skip(queue_id)
         mark_file_as_done(einfo.select, queue_id)

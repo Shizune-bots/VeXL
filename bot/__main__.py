@@ -34,7 +34,11 @@ from .workers.handlers.manage import (
     custom_rename,
     del_auto_rename,
     discap,
+    dumpleech,
     fc_forward,
+    filehost,
+    forcehost,
+    skipvideocheck,
 )
 from .workers.handlers.manage import filter as filter_
 from .workers.handlers.manage import (
@@ -193,6 +197,16 @@ async def _(e):
     await event_handler(e, allowgroupenc)
 
 
+@tele.on(events.NewMessage(pattern=command(["dumpleech"])))
+async def _(e):
+    await event_handler(e, dumpleech)
+
+
+@tele.on(events.NewMessage(pattern=command(["skipvideocheck", "svc"])))
+async def _(e):
+    await event_handler(e, skipvideocheck)
+
+
 @tele.on(events.NewMessage(pattern=command(["parse"])))
 async def _(e):
     await event_handler(e, discap, require_args=True)
@@ -216,6 +230,22 @@ async def _(e):
 @tele.on(events.NewMessage(pattern=command(["delfilter"])))
 async def _(e):
     await event_handler(e, rmfilter)
+
+
+@tele.on(events.NewMessage(pattern=command(["filehost"])))
+async def _(e):
+    await event_handler(e, filehost)
+
+
+@tele.on(events.callbackquery.CallbackQuery(data=re.compile(b"filehost.*")))
+async def _(e):
+    from .workers.handlers.manage import filehost_callback
+    await filehost_callback(tele, e)
+
+
+@tele.on(events.NewMessage(pattern=command(["forcehost"])))
+async def _(e):
+    await event_handler(e, forcehost)
 
 
 @tele.on(events.NewMessage(pattern=command(["mset"])))

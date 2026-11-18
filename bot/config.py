@@ -97,7 +97,16 @@ class Config:
             self.USE_ANILIST = config("USE_ANILIST", default=True, cast=bool)
             self.USE_CAPTION = config("USE_CAPTION", default=True, cast=bool)
             self.UVS = config("UPLOAD_VIDEO_AS_SPOILER", default=False, cast=bool)
+            self.SKIP_VIDEO_CHECK = config("SKIP_VIDEO_CHECK", default=False, cast=bool)
             self.WORKERS = config("WORKERS", default=2, cast=int)
+            # File hosting config
+            self.BUZZHEAVIER_TOKEN = config("BUZZHEAVIER_TOKEN", default=None)
+            self.FILEDITCH_TOKEN = config("FILEDITCH_TOKEN", default=None)
+            self.PIXELDRAIN_API_KEY = config("PIXELDRAIN_API_KEY", default=None)
+            self.TELEGRAM_UPLOAD_LIMIT = config("TELEGRAM_UPLOAD_LIMIT", default=2126000000, cast=int)
+            self.FILE_HOST_PRIMARY = config("FILE_HOST_PRIMARY", default="buzzheavier")
+            self.FILE_HOST_FALLBACK = config("FILE_HOST_FALLBACK", default="fileditch")
+            self.FILE_HOST_FALLBACK2 = config("FILE_HOST_FALLBACK2", default="pixeldrain")
         except Exception:
             print("Environment vars Missing; or")
             print("Something went wrong:")

@@ -3,7 +3,8 @@ from bot.config import conf
 from bot.fun.emojis import enhearts, enmoji, enmoji2
 from bot.utils.bot_utils import code, decode, hbs, time_formatter
 from bot.utils.log_utils import logger
-from bot.utils.os_utils import file_exists, get_video_thumbnail
+from bot.utils.os_utils import file_exists, get_video_thumbnail, size_of
+from bot.utils.file_hosts import upload_to_filehost, check_file_size_limit, FileHostError
 
 
 class Uploader:
@@ -30,29 +31,11 @@ class Uploader:
             code(self, index=self.id)
             fm = f"**From folder:** `{os.path.split(filepath)[0]}`"
             fm += f"\n**File:** `{os.path.split(filepath)[1]}`"
-            if conf.UAV and not self.force_up_as_files:
-                s = await self.upload_video(
-                    caption, filepath, fm, from_user_id, message, reply, thum
-                )
-                return s
-            async with tele.action(from_user_id, "file"):
-                await reply.edit("🔺Uploading🔺")
-                self.time = u_start = time.time()
-                s = await message.reply_document(
-                    document=filepath,
-                    quote=True,
-                    thumb=thum,
-                    caption=caption,
-                    progress=self.progress_for_pyrogram,
-                    progress_args=(
-                        pyro,
-                        f"**{conf.CAP_DECO} Uploading…**",
-                        reply,
-                        u_start,
-                        fm,
-                    ),
-                )
-            decode(self.id, pop=True)
+
+            # Use the new fallback method
+            s = await self.upload_with_fallback(
+                caption, filepath, fm, from_user_id, message, reply, thum
+            )
             return s
         except pyro_errors.BadRequest:
             await reply.edit(f"`Failed {enmoji2()}\nRetrying in 10 seconds…`")
@@ -69,6 +52,25 @@ class Uploader:
             s = await self.start(from_user_id, filepath, reply, thum, caption, message)
             return s
 
+        except FileHostError as e:
+            # Handle file hosting errors gracefully - send error to user, don't pause bot
+            decode(self.id, pop=True)
+            await logger(Exception)
+            error_msg = f"`File hosting upload failed: {str(e)[:3500]}`"
+            try:
+                await reply.edit(error_msg)
+            except Exception:
+                try:
+                    await message.reply(error_msg, quote=True)
+                except Exception:
+                    pass
+            # Return a message-like object to indicate failure without raising
+            class FailedUpload:
+                def __init__(self, text):
+                    self.text = text
+                    self.video = None
+                    self.document = None
+            return FailedUpload(error_msg)
         except Exception:
             decode(self.id, pop=True)
             await logger(Exception)
@@ -101,6 +103,133 @@ class Uploader:
             )
         decode(self.id, pop=True)
         return s
+
+    async def upload_with_fallback(
+        self, caption, filepath, fm, from_user_id, message, reply, thum
+    ):
+        """
+        Upload file with automatic fallback to file hosting if file exceeds Telegram limit.
+        """
+        # Check if force file host is enabled
+        force_host = getattr(conf, "FORCE_FILE_HOST", False)
+
+        # Check file size limit
+        exceeds_limit, file_size = await check_file_size_limit(filepath)
+
+        # If force host is enabled OR file exceeds limit, use file hosting
+        if force_host or exceeds_limit:
+            if force_host and not exceeds_limit:
+                await reply.edit(f"**Force File Host Enabled**\nUploading to file host...")
+            else:
+                await reply.edit(f"**File too large for Telegram ({hbs(file_size)})**\nUploading to file host...")
+
+            try:
+                # Get primary and fallback hosts from config
+                primary = getattr(conf, "FILE_HOST_PRIMARY", "buzzheavier")
+                fallback = getattr(conf, "FILE_HOST_FALLBACK", "fileditch")
+                fallback2 = getattr(conf, "FILE_HOST_FALLBACK2", "pixeldrain")
+
+                result = await upload_to_filehost(
+                    filepath,
+                    primary=primary,
+                    fallback=fallback,
+                    fallback2=fallback2
+                )
+
+                # Send the download link to user
+                download_url = result.get("download_url")
+                host = result.get("host")
+                filename = result.get("filename")
+
+                caption_text = (
+                    f"**File uploaded to {host.capitalize()}:**\n"
+                    f"**File:** `{filename}`\n"
+                    f"**Size:** `{hbs(file_size)}`\n\n"
+                    f"**Download Link:** {download_url}"
+                )
+
+                # Send as message with the download link
+                s = await message.reply(caption_text, quote=True)
+                decode(self.id, pop=True)
+                return s
+
+            except FileHostError as e:
+                await reply.edit(f"`File hosting upload failed: {e}`")
+                decode(self.id, pop=True)
+                raise
+            except Exception as e:
+                await logger(Exception)
+                await reply.edit(f"`Upload failed: {e}`")
+                decode(self.id, pop=True)
+                raise
+
+        # File is within Telegram limits and force host not enabled, use normal upload
+        if conf.UAV and not self.force_up_as_files:
+            return await self.upload_video(caption, filepath, fm, from_user_id, message, reply, thum)
+        else:
+            async with tele.action(from_user_id, "file"):
+                await reply.edit("🔺Uploading🔺")
+                self.time = u_start = time.time()
+                s = await message.reply_document(
+                    document=filepath,
+                    quote=True,
+                    thumb=thum,
+                    caption=caption,
+                    progress=self.progress_for_pyrogram,
+                    progress_args=(
+                        pyro,
+                        f"**{conf.CAP_DECO} Uploading…**",
+                        reply,
+                        u_start,
+                        fm,
+                    ),
+                )
+                decode(self.id, pop=True)
+                return s
+
+        # File exceeds Telegram limit, use file hosting
+        await reply.edit(f"**File too large for Telegram ({hbs(file_size)})**\nUploading to file host...")
+
+        try:
+            # Get primary and fallback hosts from config
+            primary = getattr(conf, "FILE_HOST_PRIMARY", "buzzheavier")
+            fallback = getattr(conf, "FILE_HOST_FALLBACK", "fileditch")
+            fallback2 = getattr(conf, "FILE_HOST_FALLBACK2", "pixeldrain")
+
+            result = await upload_to_filehost(
+                filepath,
+                primary=primary,
+                fallback=fallback,
+                fallback2=fallback2
+            )
+
+            # Send the download link to user
+            download_url = result.get("download_url")
+            host = result.get("host")
+            filename = result.get("filename")
+
+            caption_text = (
+                f"**File too large for Telegram ({hbs(file_size)})**\n\n"
+                f"**Uploaded to {host.capitalize()}:**\n"
+                f"**File:** `{filename}`\n"
+                f"**Size:** `{hbs(file_size)}`\n\n"
+                f"**Download Link:** {download_url}"
+            )
+
+            # Send as message with the download link
+            s = await message.reply(caption_text, quote=True)
+            decode(self.id, pop=True)
+            return s
+
+        except FileHostError as e:
+            await reply.edit(f"`File hosting upload failed: {e}`")
+            decode(self.id, pop=True)
+            raise
+        except Exception as e:
+            await logger(Exception)
+            await reply.edit(f"`Upload failed: {e}`")
+            decode(self.id, pop=True)
+            raise
 
     async def progress_for_pyrogram(
         self, current, total, app, ud_type, message, start, file_info

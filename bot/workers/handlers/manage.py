@@ -16,6 +16,7 @@ from bot import (
     rss_dict_lock,
     thumb,
 )
+from telethon import Button
 from bot.config import _bot, conf
 from bot.startup.before import entime
 from bot.utils.bot_utils import encode_job as ejob
@@ -223,6 +224,78 @@ async def allowgroupenc(event, args, client):
         yo = await event.reply(
             "**Group Encoding Turned on Successfully**\n__Persists till bot restarts!__"
         )
+
+
+async def dumpleech(event, args, client):
+    """
+    Turns dumping of leech downloads on and off.
+    When enabled, files downloaded from torrent/link (aria2/qbit) are dumped to DUMP_CHANNEL.
+
+    Required arguments:
+        - off/disable (disable dumping)
+        - on/enable (enable dumping)
+        - no argument (check current state)
+    <All arguments are not case sensitive.>
+    """
+    if not user_is_owner(event.sender_id):
+        return await event.delete()
+
+    if not args:
+        if conf.DUMP_LEECH:
+            return await event.reply("`Dump leech downloads is enabled.`")
+        else:
+            return await event.reply("`Dump leech downloads is disabled.`")
+
+    if args.casefold() in ("off", "disable"):
+        if not conf.DUMP_LEECH:
+            return await event.reply("**Already turned off**")
+        conf.DUMP_LEECH = False
+        await event.reply("**Dump leech downloads turned off Successfully**")
+    elif args.casefold() in ("on", "enable"):
+        if conf.DUMP_LEECH:
+            return await event.reply("**Already turned on**")
+        conf.DUMP_LEECH = True
+        await event.reply(
+            "**Dump leech downloads Turned on Successfully**\n__Persists till bot restarts!__"
+        )
+    else:
+        await event.reply(f"`{dumpleech.__doc__}`")
+
+
+async def skipvideocheck(event, args, client):
+    """
+    Toggle video validation check for links.
+    When enabled, all links are accepted WITHOUT checking if they point to a video.
+
+    Required arguments:
+        - on/enable (skip video check - accept all links)
+        - off/disable (enable video check - default behavior)
+        - no argument (check current state)
+    <All arguments are not case sensitive.>
+    """
+    if not user_is_owner(event.sender_id):
+        return await event.delete()
+
+    if not args:
+        if conf.SKIP_VIDEO_CHECK:
+            return await event.reply("`Video check is SKIPPED (all links accepted).`")
+        else:
+            return await event.reply("`Video check is ACTIVE (links validated).`")
+
+    if args.casefold() in ("on", "enable", "skip"):
+        if conf.SKIP_VIDEO_CHECK:
+            return await event.reply("**Video check already skipped**")
+        conf.SKIP_VIDEO_CHECK = True
+        await event.reply("**Video check SKIPPED**\n__All links will be accepted without validation. Persists till bot restarts!__")
+    elif args.casefold() in ("off", "disable", "check"):
+        if not conf.SKIP_VIDEO_CHECK:
+            return await event.reply("**Video check already active**")
+        conf.SKIP_VIDEO_CHECK = False
+        await event.reply(
+            "**Video check ACTIVE**\n__Links will be validated as video files. Persists till bot restarts!__"
+        )
+    else:
+        await event.reply(f"`{skipvideocheck.__doc__}`")
 
 
 async def custom_rename(event, args, client):
@@ -827,6 +900,295 @@ async def rmfilter(event, args, client):
         await event.reply("`Filters Deleted!`")
     except Exception:
         await logger(Exception)
+
+
+async def filehost(event, args, client):
+    """
+    Change file hosting primary/fallback for large files (>2GB).
+
+    Arguments:
+        show         - Show current configuration with interactive buttons
+        reset        - Reset to defaults (buzzheavier primary, fileditch fallback, pixeldrain fallback2)
+
+    Examples:
+        /filehost show
+        /filehost reset
+    """
+    if not user_is_owner(event.sender_id):
+        return await try_delete(event)
+
+    if not args:
+        args = "show"
+
+    parts = args.strip().split()
+    cmd = parts[0].lower()
+
+    if cmd == "reset":
+        conf.FILE_HOST_PRIMARY = "buzzheavier"
+        conf.FILE_HOST_FALLBACK = "fileditch"
+        conf.FILE_HOST_FALLBACK2 = "pixeldrain"
+        await event.reply("**File host configuration reset to defaults:**\nPrimary: `buzzheavier`\nFallback: `fileditch`\nFallback 2: `pixeldrain`")
+        return
+
+    # Show interactive configuration with buttons
+    try:
+        await _show_filehost_config(event)
+    except Exception as e:
+        await logger(Exception)
+        await event.reply(f"Error: {e}")
+
+
+async def _show_filehost_config(event):
+    """Show file host configuration with interactive buttons."""
+    try:
+        primary = getattr(conf, "FILE_HOST_PRIMARY", "buzzheavier")
+        fallback = getattr(conf, "FILE_HOST_FALLBACK", "fileditch")
+        fallback2 = getattr(conf, "FILE_HOST_FALLBACK2", "pixeldrain")
+        limit = getattr(conf, "TELEGRAM_UPLOAD_LIMIT", 2126000000)
+        from bot.utils.bot_utils import hbs as get_readable_file_size
+        limit_str = get_readable_file_size(limit)
+
+        buzzheavier_token = "✅ Set" if getattr(conf, "BUZZHEAVIER_TOKEN", None) else "❌ Not Set"
+        fileditch_token = "✅ Set" if getattr(conf, "FILEDITCH_TOKEN", None) else "❌ Not Set"
+        pixeldrain_key = "✅ Set" if getattr(conf, "PIXELDRAIN_API_KEY", None) else "❌ Not Set"
+
+        text = (
+            "**📁 File Host Configuration**\n\n"
+            f"**Priority Order:**\n"
+            f"└ 1️⃣ Primary: `{primary}`\n"
+            f"└ 2️⃣ Fallback: `{fallback}`\n"
+            f"└ 3️⃣ Fallback 2: `{fallback2}`\n\n"
+            f"**Telegram Upload Limit:** `{limit_str}`\n\n"
+            f"**Auth Status:**\n"
+            f"└ BuzzHeavier: `{buzzheavier_token}`\n"
+            f"└ Fileditch: `{fileditch_token}`\n"
+            f"└ Pixeldrain: `{pixeldrain_key}`\n\n"
+            f"Tap a position to change its host. Auto-closes in 45s."
+        )
+
+        # Build inline keyboard using Telethon's Button
+        valid_hosts = ["buzzheavier", "fileditch", "pixeldrain", "disabled"]
+        host_emojis = {
+            "buzzheavier": "🚀",
+            "fileditch": "📎",
+            "pixeldrain": "💧",
+            "disabled": "⛔"
+        }
+
+        buttons = []
+
+        # Position 1 (Primary) row
+        row1 = []
+        for host in valid_hosts:
+            prefix = "✅ " if host == primary else ""
+            row1.append(Button.inline(f"{prefix}{host_emojis[host]} {host.capitalize()}", data=f"filehost_set_1_{host}"))
+        buttons.append(row1)
+
+        # Position 2 (Fallback) row
+        row2 = []
+        for host in valid_hosts:
+            prefix = "✅ " if host == fallback else ""
+            row2.append(Button.inline(f"{prefix}{host_emojis[host]} {host.capitalize()}", data=f"filehost_set_2_{host}"))
+        buttons.append(row2)
+
+        # Position 3 (Fallback 2) row
+        row3 = []
+        for host in valid_hosts:
+            prefix = "✅ " if host == fallback2 else ""
+            row3.append(Button.inline(f"{prefix}{host_emojis[host]} {host.capitalize()}", data=f"filehost_set_3_{host}"))
+        buttons.append(row3)
+
+        # Action buttons
+        buttons.append([
+            Button.inline("🔄 Reset to Defaults", data="filehost_reset"),
+            Button.inline("❌ Close", data="filehost_close")
+        ])
+
+        # Don't delete user's command, just reply with the panel
+        sent_msg = await event.reply(text, buttons=buttons)
+
+        # Schedule auto-delete after 45 seconds of inactivity
+        asyncio.create_task(_auto_delete_filehost_panel(sent_msg))
+    except Exception as e:
+        await logger(Exception)
+        # Fallback to simple text message
+        try:
+            await event.reply(f"Error showing config: {e}")
+        except Exception:
+            pass
+
+
+async def _auto_delete_filehost_panel(message):
+    """Delete the filehost panel message after 45 seconds of inactivity."""
+    try:
+        await asyncio.sleep(45)
+        await message.delete()
+    except Exception:
+        pass  # Message already deleted or other error
+
+
+async def filehost_callback(client, query):
+    """Handle filehost inline button callbacks."""
+    try:
+        # Telethon CallbackQuery event has user_id (sender_id is alias)
+        user_id = getattr(query, 'user_id', None) or getattr(query, 'sender_id', None)
+        if not user_id or not user_is_owner(user_id):
+            return await query.answer("You're not allowed to do this!", show_alert=True)
+
+        data = query.data
+        if isinstance(data, bytes):
+            data = data.decode('utf-8')
+
+        if data == "filehost_close":
+            await query.message.delete()
+            return
+
+        if data == "filehost_reset":
+            conf.FILE_HOST_PRIMARY = "buzzheavier"
+            conf.FILE_HOST_FALLBACK = "fileditch"
+            conf.FILE_HOST_FALLBACK2 = "pixeldrain"
+            await query.answer("Reset to defaults!", show_alert=True)
+            await _update_filehost_message(query)
+            return
+
+        # Handle position changes: filehost_set_<position>_<host>
+        if data.startswith("filehost_set_"):
+            parts = data.split("_")
+            if len(parts) == 4:
+                position = parts[2]
+                new_host = parts[3]
+
+                if position == "1":
+                    conf.FILE_HOST_PRIMARY = new_host
+                elif position == "2":
+                    conf.FILE_HOST_FALLBACK = new_host
+                elif position == "3":
+                    conf.FILE_HOST_FALLBACK2 = new_host
+
+                position_names = {"1": "Primary", "2": "Fallback", "3": "Fallback 2"}
+                await query.answer(f"Position {position} ({position_names[position]}) set to {new_host}!")
+                await _update_filehost_message(query)
+                return
+
+        await query.answer("Unknown action", show_alert=True)
+    except Exception as e:
+        await logger(Exception)
+        await query.answer(f"Error: {e}", show_alert=True)
+
+
+async def _update_filehost_message(query):
+    """Update the filehost message with current config and buttons."""
+    try:
+        primary = getattr(conf, "FILE_HOST_PRIMARY", "buzzheavier")
+        fallback = getattr(conf, "FILE_HOST_FALLBACK", "fileditch")
+        fallback2 = getattr(conf, "FILE_HOST_FALLBACK2", "pixeldrain")
+        limit = getattr(conf, "TELEGRAM_UPLOAD_LIMIT", 2126000000)
+        from bot.utils.bot_utils import hbs as get_readable_file_size
+        limit_str = get_readable_file_size(limit)
+
+        buzzheavier_token = "✅ Set" if getattr(conf, "BUZZHEAVIER_TOKEN", None) else "❌ Not Set"
+        fileditch_token = "✅ Set" if getattr(conf, "FILEDITCH_TOKEN", None) else "❌ Not Set"
+        pixeldrain_key = "✅ Set" if getattr(conf, "PIXELDRAIN_API_KEY", None) else "❌ Not Set"
+
+        text = (
+            "**📁 File Host Configuration**\n\n"
+            f"**Priority Order:**\n"
+            f"└ 1️⃣ Primary: `{primary}`\n"
+            f"└ 2️⃣ Fallback: `{fallback}`\n"
+            f"└ 3️⃣ Fallback 2: `{fallback2}`\n\n"
+            f"**Telegram Upload Limit:** `{limit_str}`\n\n"
+            f"**Auth Status:**\n"
+            f"└ BuzzHeavier: `{buzzheavier_token}`\n"
+            f"└ Fileditch: `{fileditch_token}`\n"
+            f"└ Pixeldrain: `{pixeldrain_key}`\n\n"
+            f"Tap a position to change its host. Auto-closes in 45s."
+        )
+
+        valid_hosts = ["buzzheavier", "fileditch", "pixeldrain", "disabled"]
+        host_emojis = {
+            "buzzheavier": "🚀",
+            "fileditch": "📎",
+            "pixeldrain": "💧",
+            "disabled": "⛔"
+        }
+
+        buttons = []
+
+        # Position 1 (Primary) row
+        row1 = []
+        for host in valid_hosts:
+            prefix = "✅ " if host == primary else ""
+            row1.append(Button.inline(f"{prefix}{host_emojis[host]} {host.capitalize()}", data=f"filehost_set_1_{host}"))
+        buttons.append(row1)
+
+        # Position 2 (Fallback) row
+        row2 = []
+        for host in valid_hosts:
+            prefix = "✅ " if host == fallback else ""
+            row2.append(Button.inline(f"{prefix}{host_emojis[host]} {host.capitalize()}", data=f"filehost_set_2_{host}"))
+        buttons.append(row2)
+
+        # Position 3 (Fallback 2) row
+        row3 = []
+        for host in valid_hosts:
+            prefix = "✅ " if host == fallback2 else ""
+            row3.append(Button.inline(f"{prefix}{host_emojis[host]} {host.capitalize()}", data=f"filehost_set_3_{host}"))
+        buttons.append(row3)
+
+        # Action buttons
+        buttons.append([
+            Button.inline("🔄 Reset to Defaults", data="filehost_reset"),
+            Button.inline("❌ Close", data="filehost_close")
+        ])
+
+        # Edit the existing message with updated buttons
+        await query.edit(text, buttons=buttons)
+    except Exception as e:
+        await logger(Exception)
+        await query.answer(f"Error updating message: {e}", show_alert=True)
+
+
+async def forcehost(event, args, client):
+    """
+    Force all encoded files to upload to file host instead of Telegram.
+    Resets to OFF on bot restart.
+
+    Arguments:
+        on      - Enable force file hosting
+        off     - Disable force file hosting
+        show    - Show current status
+
+    Examples:
+        /forcehost on
+        /forcehost off
+        /forcehost show
+    """
+    if not user_is_owner(event.sender_id):
+        return await try_delete(event)
+
+    if not args:
+        return await event.reply(f"`{forcehost.__doc__}`")
+
+    cmd = args.strip().lower()
+
+    # Initialize the variable if not exists
+    if not hasattr(conf, "FORCE_FILE_HOST"):
+        conf.FORCE_FILE_HOST = False
+
+    if cmd == "on":
+        conf.FORCE_FILE_HOST = True
+        await event.reply("**Force File Host: `ON`**\nAll encoded files will be uploaded to file host (ignoring size limit).")
+
+    elif cmd == "off":
+        conf.FORCE_FILE_HOST = False
+        await event.reply("**Force File Host: `OFF`**\nEncoded files will upload normally (uses size limit check).")
+
+    elif cmd == "show":
+        status = "ON" if conf.FORCE_FILE_HOST else "OFF"
+        await event.reply(f"**Force File Host: `{status}`**\nResets to OFF on bot restart.")
+
+    else:
+        await event.reply(f"`{forcehost.__doc__}`")
 
 
 async def save_thumb(event, args, client):

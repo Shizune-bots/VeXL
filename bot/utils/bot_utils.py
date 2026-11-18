@@ -29,7 +29,7 @@ from bot import (
     time,
 )
 from bot.config import _bot, conf
-from bot.utils.log_utils import log, logger as async_logger
+from bot.utils.log_utils import log
 
 OK = {}
 suffix = conf.CMD_SUFFIX
@@ -442,104 +442,6 @@ def is_video_file(filename: str):
     )
     if filename.endswith((video_file_extensions)):
         return True
-    return False
-
-
-async def is_video_url(url: str, timeout: int = 30) -> bool:
-    """
-    Check if a URL points to a video file by downloading up to 5MB
-    (or whole file if smaller) and checking magic bytes.
-    Falls back to HEAD/Content-Type check first.
-    """
-    if not is_url(url):
-        await async_logger(e=f"is_video_url: Invalid URL format: {url}")
-        return False
-
-    # Video file magic bytes signatures
-    video_signatures = [
-        b'\x00\x00\x00\x18ftypmp4',  # MP4 (ftyp at offset 4)
-        b'\x00\x00\x00\x1cftypmp4',
-        b'\x00\x00\x00\x20ftypmp4',
-        b'\x00\x00\x00\x14ftypisom',  # MP4 (isom)
-        b'\x00\x00\x00\x18ftypisom',
-        b'\x00\x00\x00\x1cftypisom',
-        b'\x00\x00\x00\x20ftypisom',
-        b'ftyp',  # Generic MP4/MOV (ftyp box)
-        b'\x1aE\xdf\xa3',  # MKV/WebM (EBML)
-        b'\x00\x00\x01\xba',  # MPEG-PS
-        b'\x00\x00\x01\xb3',  # MPEG-1 video
-        b'\xff\xfb',  # MP3/MPEG audio (could be video container)
-        b'RIFF',  # AVI (RIFF header) - need to check for AVIX
-        b'\x30\x26\xb2\x75\x8e\x66\xcf\x11',  # ASF/WMV
-        b'FLV\x01',  # FLV
-        b'\x46\x4c\x56\x01',  # FLV
-    ]
-
-    MAX_CHECK_BYTES = 5 * 1024 * 1024  # 5MB
-
-    try:
-        async with ClientSession(trust_env=True) as session:
-            # Try HEAD first (fast path)
-            async with session.head(replace_proxy(url), timeout=timeout) as resp:
-                content_type = resp.headers.get("Content-Type", "").lower()
-                content_length = resp.headers.get("Content-Length")
-                file_size = None
-                if content_length:
-                    try:
-                        file_size = int(content_length)
-                    except ValueError:
-                        pass
-
-                await async_logger(e=f"is_video_url HEAD: url={url} status={resp.status} content_type={content_type} content_length={file_size}")
-
-                if any(vtype in content_type for vtype in video_mimetype):
-                    await async_logger(e=f"is_video_url: Accepted via Content-Type: {content_type}")
-                    return True
-
-                # If Content-Type is generic, fall through to chunk check
-                if content_type not in ('application/octet-stream', 'application/force-download', 'binary/octet-stream', ''):
-                    await async_logger(e=f"is_video_url: Rejected via Content-Type: {content_type}")
-                    return False
-    except Exception as e:
-        import traceback
-        await async_logger(e=f"is_video_url HEAD failed: {url} error_type={type(e).__name__} error={repr(e)} str={str(e)}\n{traceback.format_exc()}")
-        file_size = None
-
-    # Download up to 5MB (or whole file if smaller) to check magic bytes
-    try:
-        async with ClientSession(trust_env=True) as session:
-            headers = {}
-            if file_size and file_size > MAX_CHECK_BYTES:
-                headers['Range'] = f'bytes=0-{MAX_CHECK_BYTES - 1}'
-
-            async with session.get(replace_proxy(url), timeout=timeout, headers=headers) as resp:
-                await async_logger(e=f"is_video_url GET: url={url} status={resp.status} range_header={headers.get('Range', 'none')}")
-                if resp.status in (200, 206):
-                    chunk = await resp.read()
-                    chunk_len = len(chunk)
-                    await async_logger(e=f"is_video_url: Downloaded {chunk_len} bytes for magic byte check")
-
-                    # Check video signatures
-                    for sig in video_signatures:
-                        if chunk.startswith(sig) or sig in chunk[:min(32, chunk_len)]:
-                            await async_logger(e=f"is_video_url: Accepted via magic bytes: {sig.hex()}")
-                            return True
-                    # Check for RIFF + AVI
-                    if chunk.startswith(b'RIFF') and b'AVI ' in chunk[:min(64, chunk_len)]:
-                        await async_logger(e="is_video_url: Accepted via RIFF/AVI signature")
-                        return True
-                    # Check for MOV/MP4 ftyp anywhere in first 32 bytes
-                    if b'ftyp' in chunk[:min(32, chunk_len)]:
-                        await async_logger(e="is_video_url: Accepted via ftyp signature")
-                        return True
-
-                    # Log first 32 bytes for debugging
-                    await async_logger(e=f"is_video_url: No video signature found. First 32 bytes: {chunk[:32].hex()}")
-    except Exception as e:
-        import traceback
-        await async_logger(e=f"is_video_url GET failed: {url} error_type={type(e).__name__} error={repr(e)} str={str(e)}\n{traceback.format_exc()}")
-
-    await async_logger(e=f"is_video_url: Rejected - no video signature matched: {url}")
     return False
 
 

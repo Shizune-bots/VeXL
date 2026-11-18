@@ -20,7 +20,6 @@ from bot.utils.bot_utils import (
     is_magnet,
     is_url,
     is_video_file,
-    is_video_url,
     pause,
     rm_pause,
     sdict,
@@ -45,14 +44,11 @@ str_esc = string_escape
 
 
 async def _is_video_or_url(file_name: str, uri: str) -> bool:
-    """Check if a file is a video by extension, or by URL Content-Type as fallback."""
+    """Check if a file is a video by extension."""
     # Skip video check if configured
     if conf.SKIP_VIDEO_CHECK:
         return True
-    if is_video_file(file_name):
-        return True
-    # Fallback: check URL via HEAD request for video Content-Type
-    return await is_video_url(uri)
+    return is_video_file(file_name)
 
 
 async def listqueue(event, args, client, deletable=True):
